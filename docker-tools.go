@@ -31,7 +31,7 @@ func (c LazyDockerClient) LazyPull(image, version string) (io.ReadCloser, error)
 }
 
 func (c LazyDockerClient) LazyLibraryPull(library, image, version string) (io.ReadCloser, error) {
-	fullyQualifiedImageName := fmt.Sprintf("%s/%s:%s")
+	fullyQualifiedImageName := fmt.Sprintf("%s/%s:%s", library, image, version)
 	ctx, cancelFunc := c.newLazyContext()
 	defer cancelFunc()
 	return c.ImagePull(ctx, fullyQualifiedImageName, types.ImagePullOptions{
