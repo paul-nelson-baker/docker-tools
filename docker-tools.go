@@ -21,7 +21,7 @@ func NewLazyClient() (LazyDockerClient, error) {
 	} else {
 		return LazyDockerClient{
 			Client:  client,
-			Timeout: 0,
+			Timeout: time.Minute * 15,
 		}, nil
 	}
 }
