@@ -26,19 +26,19 @@ func NewLazyClient() (LazyDockerClient, error) {
 	}
 }
 
-func (c LazyDockerClient) LazyPull(image, version string) (io.ReadCloser, error) {
+func (c LazyDockerClient) LazyPull(image, version string) (io.ReadCloser, context.CancelFunc, error) {
 	return c.LazyLibraryPull(`docker.io/library`, image, version)
 }
 
-func (c LazyDockerClient) LazyLibraryPull(library, image, version string) (io.ReadCloser, error) {
+func (c LazyDockerClient) LazyLibraryPull(library, image, version string) (io.ReadCloser, context.CancelFunc, error) {
 	fullyQualifiedImageName := fmt.Sprintf("%s/%s:%s", library, image, version)
 	ctx, cancelFunc := c.newLazyContext()
-	defer cancelFunc()
-	return c.ImagePull(ctx, fullyQualifiedImageName, types.ImagePullOptions{
+	closer, err := c.ImagePull(ctx, fullyQualifiedImageName, types.ImagePullOptions{
 		All:           false,
 		RegistryAuth:  "",
 		PrivilegeFunc: nil,
 	})
+	return closer, cancelFunc, err
 }
 
 func (c LazyDockerClient) newLazyContext() (context.Context, context.CancelFunc) {
