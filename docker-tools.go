@@ -17,7 +17,7 @@ type LazyDockerClient struct {
 
 // Simple client with a default 15 minute timeout
 func NewLazyClient() (LazyDockerClient, error) {
-	if client, err := GetDockerClientEnvFallback(); err != nil {
+	if client, err := GetDockerEnvClientWithMachineFallback(); err != nil {
 		return LazyDockerClient{}, err
 	} else {
 		return LazyDockerClient{

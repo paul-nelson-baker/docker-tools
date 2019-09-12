@@ -18,24 +18,28 @@ import (
 // A function that will either return a
 type DockerClientSupplier func() (*client.Client, error)
 
-// Attempts to contact `docker-machine` and if it can, it will use it.
-// If it can't get through to docker machine (for instance, if you have
-// an actual docker installation available) it will fall back onto
-// the client.NewEnvClient
-func GetDockerClientEnvFallback() (*client.Client, error) {
-	return GetDockerClient(client.NewEnvClient)
+func GetDockerClient() (*client.Client, error) {
+	return GetDockerClientOrFallback(client.NewEnvClient, GetDockerMachineClient)
 }
 
-// Attempts to contact `docker-machine` and if it can, it will use it.
-// If it can't get through to docker machine (for instance, if you have
-// an actual docker installation available) it will fall back onto
-// the your dockerClientSupplier.
-func GetDockerClient(dockerClientSupplier DockerClientSupplier) (*client.Client, error) {
+func GetDockerClientOrFallback(dockerClientSuppliers ...DockerClientSupplier) (dockerClient *client.Client, err error) {
+	if len(dockerClientSuppliers) == 0 {
+		err = fmt.Errorf("no docker suppliers were provided")
+		return
+	}
+	for _, supplier := range dockerClientSuppliers {
+		if d, err := supplier(); err == nil {
+			dockerClient = d
+			return
+		}
+	}
+	return
+}
+
+func GetDockerMachineClient() (*client.Client, error) {
 	dockerMachineConfig, err := getDockerMachineConfig()
-	// The call to docker-machine failed, which means we can fall back
-	// to our alternate client supplier
 	if err != nil {
-		return dockerClientSupplier()
+		return nil, err
 	}
 	tlsConfig, err := loadDockerMachineCerts(dockerMachineConfig.tlsCaCert, dockerMachineConfig.tlsCert, dockerMachineConfig.tlsKey)
 	if err != nil {
