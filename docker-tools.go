@@ -29,8 +29,8 @@ func NewLazyClient() (LazyDockerClient, error) {
 }
 
 // Let's pull an image, and key off of the events we get back as we're pulling
-func (c LazyDockerClient) LazyPullCallback(image, version string, callback DockerPullEventFunc) error {
-	readCloser, cancelFunc, err := c.LazyPull(image, version)
+func (c LazyDockerClient) LazyPullCallback(lazyImage LazyImage, callback DockerPullEventFunc) error {
+	readCloser, cancelFunc, err := c.LazyPull(lazyImage)
 	// Make sure that any resources that need to be closed get closed
 	// but make sure that we still error check where necessary
 	if readCloser != nil {
@@ -73,12 +73,8 @@ type DockerPullEvent struct {
 	} `json:"progressDetail"`
 }
 
-func (c LazyDockerClient) LazyPull(image, version string) (io.ReadCloser, context.CancelFunc, error) {
-	return c.LazyLibraryPull(`docker.io/library`, image, version)
-}
-
-func (c LazyDockerClient) LazyLibraryPull(library, image, version string) (io.ReadCloser, context.CancelFunc, error) {
-	fullyQualifiedImageName := fmt.Sprintf("%s/%s:%s", library, image, version)
+func (c LazyDockerClient) LazyPull(lazyImage LazyImage) (io.ReadCloser, context.CancelFunc, error) {
+	fullyQualifiedImageName := lazyImage.FullName()
 	ctx, cancelFunc := c.newLazyContext()
 	closer, err := c.ImagePull(ctx, fullyQualifiedImageName, types.ImagePullOptions{
 		All:           false,
@@ -88,14 +84,24 @@ func (c LazyDockerClient) LazyLibraryPull(library, image, version string) (io.Re
 	return closer, cancelFunc, err
 }
 
-//func (c LazyDockerClient) LazyRun(image, version, containerName string) (container.ContainerCreateCreatedBody, error) {
-//	lazyContext, cancelFunc := c.newLazyContext()
-//	defer cancelFunc()
-//	config := &container.Config{}
-//	hostConfig := &container.HostConfig{}
-//	networkingConfig := &network.NetworkingConfig{}
-//	return c.ContainerCreate(lazyContext, config, hostConfig, networkingConfig, containerName)
-//}
+func DockerLazyImage(name, version string) LazyImage {
+	return LazyImage{
+		Library: "docker.io/library",
+		Name:    name,
+		Version: version,
+	}
+}
+
+type LazyImage struct {
+	Library string
+	Name    string
+	Version string
+}
+
+func (l LazyImage) FullName() string {
+	fullyQualifiedImageName := fmt.Sprintf("%s/%s:%s", l.Library, l.Name, l.Version)
+	return fullyQualifiedImageName
+}
 
 func (c LazyDockerClient) newLazyContext() (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.Background(), c.Timeout)
