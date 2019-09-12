@@ -28,8 +28,7 @@ func GetDockerClientOrFallback(dockerClientSuppliers ...DockerClientSupplier) (d
 		return
 	}
 	for _, supplier := range dockerClientSuppliers {
-		if d, err := supplier(); err == nil {
-			dockerClient = d
+		if dockerClient, err = supplier(); err == nil {
 			return
 		}
 	}
