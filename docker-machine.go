@@ -18,10 +18,6 @@ import (
 // A function that will either return a
 type DockerClientSupplier func() (*client.Client, error)
 
-func GetDockerClient() (*client.Client, error) {
-	return GetDockerClientOrFallback(client.NewEnvClient, GetDockerMachineClient)
-}
-
 func GetDockerClientOrFallback(dockerClientSuppliers ...DockerClientSupplier) (dockerClient *client.Client, err error) {
 	if len(dockerClientSuppliers) == 0 {
 		err = fmt.Errorf("no docker suppliers were provided")
