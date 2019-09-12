@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
-	dockerMachineHelper "github.com/paul-nelson-baker/docker-machine-helper"
 	"io"
 	"time"
 )
@@ -18,7 +17,7 @@ type LazyDockerClient struct {
 
 // Simple client with a default 15 minute timeout
 func NewLazyClient() (LazyDockerClient, error) {
-	if client, err := dockerMachineHelper.GetDockerClientEnvFallback(); err != nil {
+	if client, err := GetDockerClientEnvFallback(); err != nil {
 		return LazyDockerClient{}, err
 	} else {
 		return LazyDockerClient{
@@ -53,7 +52,7 @@ func (c LazyDockerClient) LazyPullCallback(lazyImage LazyImage, callback DockerP
 		} else if err != nil {
 			return err
 		}
-		if err := callback(image, version, event); err != nil {
+		if err := callback(lazyImage, event); err != nil {
 			return err
 		}
 	}
@@ -61,7 +60,7 @@ func (c LazyDockerClient) LazyPullCallback(lazyImage LazyImage, callback DockerP
 	return nil
 }
 
-type DockerPullEventFunc func(image string, version string, event DockerPullEvent) error
+type DockerPullEventFunc func(lazyImage LazyImage, event DockerPullEvent) error
 
 type DockerPullEvent struct {
 	Status         string `json:"status"`
