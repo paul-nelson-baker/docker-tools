@@ -15,22 +15,31 @@ import (
 	"strings"
 )
 
-// A function that will either return a
+// A function that will either return a docker client or an error
 type DockerClientSupplier func() (*client.Client, error)
 
+// Will call each supplier sequentially. If a client is returned then it will be used.
+// If an error is obtained, it will call the next supplier in the sequence
 func GetDockerClientOrFallback(dockerClientSuppliers ...DockerClientSupplier) (dockerClient *client.Client, err error) {
 	if len(dockerClientSuppliers) == 0 {
 		err = fmt.Errorf("no docker suppliers were provided")
 		return
 	}
+	var errors []error
 	for _, supplier := range dockerClientSuppliers {
 		if dockerClient, err = supplier(); err == nil {
 			return
+		} else {
+			errors = append(errors, err)
 		}
 	}
+	err = fmt.Errorf(`no docker suppliers succeeded. all errors: %v`, errors)
 	return
 }
 
+// Loads a docker client via DockerMachine for systems that don't support
+// a full docker installation. Look'n at you Windows, why you gotta force
+// users to buy professional to use their own hardware?
 func GetDockerMachineClient() (*client.Client, error) {
 	dockerMachineConfig, err := getDockerMachineConfig()
 	if err != nil {

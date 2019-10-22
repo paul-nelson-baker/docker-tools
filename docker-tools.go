@@ -7,12 +7,12 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"io"
-	"time"
+	"log"
+	"strings"
 )
 
 type LazyDockerClient struct {
 	*client.Client
-	Timeout time.Duration
 }
 
 // Simple client with a default 15 minute timeout
@@ -21,8 +21,7 @@ func NewLazyClient() (LazyDockerClient, error) {
 		return LazyDockerClient{}, err
 	} else {
 		return LazyDockerClient{
-			Client:  client,
-			Timeout: time.Minute * 15,
+			Client: client,
 		}, nil
 	}
 }
@@ -62,6 +61,17 @@ func (c LazyDockerClient) LazyPullCallback(lazyImage LazyImage, callback DockerP
 
 type DockerPullEventFunc func(lazyImage LazyImage, event DockerPullEvent) error
 
+// Logs any status or progress changes to the console via `log.Println`
+func LazyLogPullEventCallback(lazyImage LazyImage, event DockerPullEvent) error {
+	if event.Status != "" || event.Progress != "" {
+		output := strings.TrimSpace(fmt.Sprintf("%s %s", event.Status, event.Progress))
+		log.Println(output)
+	}
+	return nil
+}
+
+// An event that will be async returned to the client from the docker
+// daemon as it pulls a remote image
 type DockerPullEvent struct {
 	Status         string `json:"status"`
 	Error          string `json:"error"`
@@ -72,6 +82,7 @@ type DockerPullEvent struct {
 	} `json:"progressDetail"`
 }
 
+// Simplest way to pull which will allow you to control the context and cancelation
 func (c LazyDockerClient) LazyPull(lazyImage LazyImage) (io.ReadCloser, context.CancelFunc, error) {
 	fullyQualifiedImageName := lazyImage.FullName()
 	ctx, cancelFunc := c.newLazyContext()
@@ -83,7 +94,8 @@ func (c LazyDockerClient) LazyPull(lazyImage LazyImage) (io.ReadCloser, context.
 	return closer, cancelFunc, err
 }
 
-func DockerLazyImage(name, version string) LazyImage {
+// Use this to reference official images
+func DockerLibraryImage(name, version string) LazyImage {
 	return LazyImage{
 		Library: "docker.io/library",
 		Name:    name,
@@ -91,17 +103,39 @@ func DockerLazyImage(name, version string) LazyImage {
 	}
 }
 
+// Use this to reference other third party images on docker hub
+func DockerHubImage(name, version string) LazyImage {
+	return LazyImage{
+		Library: "registry.hub.docker.com",
+		Name:    name,
+		Version: version,
+	}
+}
+
+// Used to reference a docker image as a 3-tuple
 type LazyImage struct {
 	Library string
 	Name    string
 	Version string
 }
 
+// A fully qualified name for an image which will all elements
 func (l LazyImage) FullName() string {
 	fullyQualifiedImageName := fmt.Sprintf("%s/%s:%s", l.Library, l.Name, l.Version)
 	return fullyQualifiedImageName
 }
 
+// A short name. This is the name and version as a person would enter
+// into a docker command. If the version is not present only the name
+// is returned.
+func (l LazyImage) ShortName() string {
+	if l.Version == "" {
+		return l.Name
+	}
+	shortImageName := fmt.Sprintf("%s:%s", l.Name, l.Version)
+	return shortImageName
+}
+
 func (c LazyDockerClient) newLazyContext() (context.Context, context.CancelFunc) {
-	return context.WithTimeout(context.Background(), c.Timeout)
+	return context.WithCancel(context.Background())
 }
