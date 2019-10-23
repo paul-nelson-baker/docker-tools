@@ -62,7 +62,7 @@ func (c LazyDockerClient) LazyPullCallback(lazyImage LazyImage, callback DockerP
 type DockerPullEventFunc func(lazyImage LazyImage, event DockerPullEvent) error
 
 // Logs any status or progress changes to the console via `log.Println`
-func LazyLogPullEventCallback(lazyImage LazyImage, event DockerPullEvent) error {
+func PullEventLoggingCallback(lazyImage LazyImage, event DockerPullEvent) error {
 	if event.Status != "" || event.Progress != "" {
 		output := strings.TrimSpace(fmt.Sprintf("%s %s", event.Status, event.Progress))
 		log.Println(output)
