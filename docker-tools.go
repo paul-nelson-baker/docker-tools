@@ -3,12 +3,11 @@ package dockerTools
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
+	"github.com/paul-nelson-baker/docker-tools/image"
+	"github.com/paul-nelson-baker/docker-tools/pull"
 	"io"
-	"log"
-	"strings"
 )
 
 type LazyDockerClient struct {
@@ -27,7 +26,7 @@ func NewLazyClient() (LazyDockerClient, error) {
 }
 
 // Let's pull an image, and key off of the events we get back as we're pulling
-func (c LazyDockerClient) LazyPullCallback(lazyImage LazyImage, callback DockerPullEventFunc) error {
+func (c LazyDockerClient) LazyPullCallback(lazyImage image.LazyImage, callback pull.DockerPullEventFunc) error {
 	readCloser, cancelFunc, err := c.LazyPull(lazyImage)
 	// Make sure that any resources that need to be closed get closed
 	// but make sure that we still error check where necessary
@@ -43,7 +42,7 @@ func (c LazyDockerClient) LazyPullCallback(lazyImage LazyImage, callback DockerP
 	// process the pull events until there aren't any left and pass
 	// that event back to the function that we want to process it
 	// terminate the processing if we encounter an error along the way.
-	var event DockerPullEvent
+	var event pull.DockerPullEvent
 	decoder := json.NewDecoder(readCloser)
 	for {
 		if err := decoder.Decode(&event); err == io.EOF {
@@ -59,31 +58,8 @@ func (c LazyDockerClient) LazyPullCallback(lazyImage LazyImage, callback DockerP
 	return nil
 }
 
-type DockerPullEventFunc func(lazyImage LazyImage, event DockerPullEvent) error
-
-// Logs any status or progress changes to the console via `log.Println`
-func PullEventLoggingCallback(lazyImage LazyImage, event DockerPullEvent) error {
-	if event.Status != "" || event.Progress != "" {
-		output := strings.TrimSpace(fmt.Sprintf("%s %s", event.Status, event.Progress))
-		log.Println(output)
-	}
-	return nil
-}
-
-// An event that will be async returned to the client from the docker
-// daemon as it pulls a remote image
-type DockerPullEvent struct {
-	Status         string `json:"status"`
-	Error          string `json:"error"`
-	Progress       string `json:"progress"`
-	ProgressDetail struct {
-		Current int `json:"current"`
-		Total   int `json:"total"`
-	} `json:"progressDetail"`
-}
-
 // Simplest way to pull which will allow you to control the context and cancelation
-func (c LazyDockerClient) LazyPull(lazyImage LazyImage) (io.ReadCloser, context.CancelFunc, error) {
+func (c LazyDockerClient) LazyPull(lazyImage image.LazyImage) (io.ReadCloser, context.CancelFunc, error) {
 	fullyQualifiedImageName := lazyImage.FullName()
 	ctx, cancelFunc := c.newLazyContext()
 	closer, err := c.ImagePull(ctx, fullyQualifiedImageName, types.ImagePullOptions{
@@ -92,48 +68,6 @@ func (c LazyDockerClient) LazyPull(lazyImage LazyImage) (io.ReadCloser, context.
 		PrivilegeFunc: nil,
 	})
 	return closer, cancelFunc, err
-}
-
-// Use this to reference official images
-func DockerLibraryImage(name, version string) LazyImage {
-	return LazyImage{
-		Library: "docker.io/library",
-		Name:    name,
-		Version: version,
-	}
-}
-
-// Use this to reference other third party images on docker hub
-func DockerHubImage(name, version string) LazyImage {
-	return LazyImage{
-		Library: "registry.hub.docker.com",
-		Name:    name,
-		Version: version,
-	}
-}
-
-// Used to reference a docker image as a 3-tuple
-type LazyImage struct {
-	Library string
-	Name    string
-	Version string
-}
-
-// A fully qualified name for an image which will all elements
-func (l LazyImage) FullName() string {
-	fullyQualifiedImageName := fmt.Sprintf("%s/%s:%s", l.Library, l.Name, l.Version)
-	return fullyQualifiedImageName
-}
-
-// A short name. This is the name and version as a person would enter
-// into a docker command. If the version is not present only the name
-// is returned.
-func (l LazyImage) ShortName() string {
-	if l.Version == "" {
-		return l.Name
-	}
-	shortImageName := fmt.Sprintf("%s:%s", l.Name, l.Version)
-	return shortImageName
 }
 
 func (c LazyDockerClient) newLazyContext() (context.Context, context.CancelFunc) {

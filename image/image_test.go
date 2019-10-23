@@ -1,4 +1,4 @@
-package dockerTools
+package image
 
 import (
 	"testing"
