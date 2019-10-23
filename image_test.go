@@ -1,11 +1,12 @@
-package image
+package dockerTools
 
 import (
+	image2 "github.com/paul-nelson-baker/docker-tools/image"
 	"testing"
 )
 
 func TestDockerLibraryImage(t *testing.T) {
-	image := DockerLibraryImage("golang", "latest")
+	image := image2.DockerLibraryImage("golang", "latest")
 	if image.Library != "docker.io/library" {
 		t.Errorf(`Image didn't have correct library: '%s'`, image.Library)
 	}
@@ -25,7 +26,7 @@ func TestDockerLibraryImage(t *testing.T) {
 }
 
 func TestDockerHubImage(t *testing.T) {
-	image := DockerHubImage("kitematic/minecraft", "latest")
+	image := image2.DockerHubImage("kitematic/minecraft", "latest")
 	if image.Library != "registry.hub.docker.com" {
 		t.Errorf(`Image didn't have correct library: '%s'`, image.Library)
 	}
