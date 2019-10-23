@@ -32,18 +32,14 @@ func CreateTarBuildContext(tarFileConsumers ...TarFileConsumer) (string, error) 
 
 type EventFunc func(event Event) error
 
-//type Event struct {
-//	Stream string `json:"stream"`
-//}
-
-type Event map[string]string
+type Event struct {
+	Stream string `json:"stream"`
+}
 
 // Logs any status or progress changes to the console via `log.Println`
 func LoggingFunc(event Event) error {
-	if output := strings.TrimSpace(event["stream"]); output != "" {
+	if output := strings.TrimSpace(event.Stream); output != "" {
 		log.Println(output)
-	} else if len(event) > 1 {
-		log.Printf("%+v", &event)
 	}
 	return nil
 }
