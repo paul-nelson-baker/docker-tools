@@ -1,4 +1,4 @@
-package docker_tools
+package dockerTools
 
 import (
 	"context"
